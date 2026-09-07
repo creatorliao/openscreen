@@ -2,7 +2,7 @@
  * build-windows-portable.mjs
  *
  * Produces a portable, drag-and-drop Windows build at:
- *   dist/openscreen-portable-<version>/
+ *   release/openscreen-portable-<version>/
  *
  * Usage (called by package.json "build:win:portable"):
  *   node scripts/build-windows-portable.mjs
@@ -10,12 +10,12 @@
  * What it does:
  *   1. Runs electron-builder --win dir into a staging directory.
  *   2. Renames the resulting `win-unpacked/` sub-directory to the
- *      final portable folder name: dist/openscreen-portable-<version>/.
+ *      final portable folder name: release/openscreen-portable-<version>/.
  *   3. Removes the staging wrapper so the end result is flat.
  *
  * The final directory layout the user sees:
- *   dist/openscreen-portable-1.10.0/
- *   ├── Openscreen.exe     ← double-click to run
+ *   release/openscreen-portable-1.10.1/
+ *   ├── Openscreen.exe     ← double-click to run (copy whole folder to any PC)
  *   ├── resources/
  *   ├── locales/
  *   └── ...
@@ -35,8 +35,8 @@ const require = createRequire(import.meta.url);
 const { version } = require("../package.json");
 
 const portableName = `openscreen-portable-${version}`;
-const stagingDir = path.join(repoRoot, "dist", ".portable-staging");
-const finalDir = path.join(repoRoot, "dist", portableName);
+const stagingDir = path.join(repoRoot, "release", ".portable-staging");
+const finalDir = path.join(repoRoot, "release", portableName);
 
 // --- 1. Clean previous staging and final dirs ---
 console.log(`[portable] Building ${portableName}…`);
@@ -73,11 +73,13 @@ if (!existsSync(unpackedDir)) {
 	process.exit(1);
 }
 
-console.log(`[portable] Renaming ${path.relative(repoRoot, unpackedDir)} → dist/${portableName}`);
+console.log(
+	`[portable] Renaming ${path.relative(repoRoot, unpackedDir)} → release/${portableName}`,
+);
 renameSync(unpackedDir, finalDir);
 
 // --- 4. Remove the now-empty staging wrapper ---
 rmSync(stagingDir, { recursive: true, force: true });
 
-console.log(`\n[portable] Done. Portable build at:\n  dist/${portableName}/`);
-console.log(`  Run: dist\\${portableName}\\Openscreen.exe`);
+console.log(`\n[portable] Done. Portable build at:\n  release/${portableName}/`);
+console.log(`  Run: release\\${portableName}\\Openscreen.exe`);

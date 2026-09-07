@@ -209,3 +209,120 @@ R{YYYYMMDD}-xx-主题
 `.gitkeep` 与 PARA 根 `README.md` 是脚手架，不要删。
 
 <!-- END:para-structure-agents -->
+
+<!-- BEGIN:portable-build-spec -->
+
+## Windows Portable build
+
+`npm run build:win:portable` produces a drag-and-drop directory at:
+
+```
+release/openscreen-portable-<version>/
+├── Openscreen.exe     ← double-click; no installer needed
+├── resources/
+│   ├── app.asar
+│   ├── electron/native/bin/win32-x64/   (ffmpeg DLLs, wgc-capture, compositor, onnxruntime…)
+│   └── …
+├── locales/
+└── *.dll              (Electron / Chromium dependencies)
+```
+
+The whole folder is self-contained — copy it to any Windows 10/11 x64 machine and run. No registry writes, no UAC prompt, no extraction delay.
+
+### What the script does (`scripts/build-windows-portable.mjs`)
+
+1. Runs `electron-builder --win dir` into a staging directory (`release/.portable-staging/`).
+2. Renames `win-unpacked/` → `release/openscreen-portable-<version>/`.
+3. Deletes the staging wrapper.
+
+### Prerequisites before running the build
+
+All of the following must be ready **before** the first `npm run build:win:portable`. The build chain does not check — it silently produces a broken package if they are absent.
+
+| Requirement | Why | Quick install |
+|-------------|-----|---------------|
+| Node 22.22.1 | ABI must match `package-lock.json` | `fnm install 22.22.1` |
+| VS BuildTools with **CMake + Ninja** component | WGC C++ helper (CMake/Ninja backend) | VS Installer → `VC.CMake.Project` |
+| VS BuildTools with **LLVM/Clang** component | Rust bindgen needs `libclang.dll` | VS Installer → `VC.Llvm.Clang`; or `pip install libclang` + set `LIBCLANG_PATH` |
+| Rust / Cargo | compositor addon | `winget install Rustlang.Rustup` |
+| CMake | standalone, used by WGC build | `winget install Kitware.CMake` |
+| Ninja | CMake backend | `pip install ninja` (if not from VS) |
+| Proxy running on `localhost:1087` | ffmpeg (~200 MB), onnxruntime (~74 MB), Rust crates all need GitHub | `proxy-manager start` |
+
+Set once per machine (user environment variable):
+```
+LIBCLANG_PATH = <Python site-packages>\clang\native
+```
+
+Full rationale and step-by-step setup: `docs/portable-build/WIN-BUILD-ENV-SETUP.md`.
+
+### Running only the packaging step (binaries already built)
+
+When `electron/native/bin/win32-x64/` is already populated from a previous build:
+
+```powershell
+$env:HTTPS_PROXY   = "http://localhost:1087"   # only if fetching is still needed
+$env:LIBCLANG_PATH = "…\clang\native"          # only if compositor needs rebuild
+npx tsc && npx vite build
+node scripts/build-windows-portable.mjs
+```
+
+### Output location
+
+`release/openscreen-portable-<version>/` — covered by `release/**` in `.gitignore`.
+
+<!-- END:portable-build-spec -->
+
+<!-- BEGIN:agent-collaboration-rules -->
+
+## Agent collaboration rules (derived from project history)
+
+These rules are extracted from 3 990 commits and observed working patterns. They describe how this maintainer works and what an agent must do to be useful here.
+
+### Task execution style
+
+**Work → trace → commit in that order.** Every non-trivial task follows the sequence:
+
+1. **Create a theme folder** under `docs/portable-build/` (or the appropriate PARA `01-Projects` slot) with `REQUIREMENT.md`, `ANALYSIS.md`, and `SOLUTION.md` before touching any code. This is the paper trail the maintainer expects to find.
+2. **Execute the solution** — code changes, script additions, config edits.
+3. **Commit with a conventional commit message** that names the scope and the *why*, not just the what. Body should include the implementation summary and the rationale.
+4. **Quality review** — lint (`npm run lint`), typecheck (`npx tsc --noEmit`), unit tests for affected paths.
+
+Do **not** skip step 1 to save time. The maintainer reads these documents and uses them to evaluate whether the agent understood the problem correctly.
+
+### Environment before code
+
+When a build or native tool fails:
+
+- **Diagnose the missing prerequisite first.** Do not retry the same command hoping it succeeds.
+- **Check proxy status before any network download.** `proxy-manager status` — if not running, `proxy-manager start` before touching `fetch:ffmpeg`, `fetch:onnxruntime`, or Rust crate downloads.
+- **Use `pip install <tool>` as an unprivileged escape hatch** when a system-level install (winget, choco) requires admin elevation. `ninja` and `libclang` are both available on PyPI and land in the Python Scripts PATH.
+- Once a workaround is found, **document it in the env-setup doc** (`docs/portable-build/WIN-BUILD-ENV-SETUP.md`), not just in chat.
+
+### Build outputs belong in `release/`
+
+- **NSIS installer**: `release/<version>/Openscreen.Setup.<version>.exe` (produced by `build:win`)
+- **Portable directory**: `release/openscreen-portable-<version>/` (produced by `build:win:portable`)
+- Do **not** put build artifacts in `dist/` (that is Vite's renderer output) or the project root.
+
+### Portable = directory, not archive
+
+The maintainer's explicit requirement: *"copy to another PC and double-click"*. This means:
+
+- Target is `electron-builder --win dir` (unpacked directory), **never** `portable` (NSIS self-extracting EXE that decompresses to TEMP on every launch) and **never** a `.zip`.
+- The exe must be at the **root** of the output folder, not one level down in a `win-unpacked/` subdirectory.
+- `scripts/build-windows-portable.mjs` enforces this by renaming `win-unpacked/` to the final folder name.
+
+### Version bump before a new build
+
+Before producing a distributable: `npm version patch --no-git-tag-version`. The version appears in the folder name, the About dialog, and the `latest.yml` — never build two different binaries with the same version number.
+
+### Chinese is the working language
+
+The maintainer writes in Chinese. Respond in Chinese unless the context is a code comment, a commit message, or a PR description (those stay in English per the conventional-commit rule). Document files under `docs/` may be in Chinese.
+
+### Conciseness over verbosity
+
+Emit the result, not the reasoning. A correct `git commit` and a one-paragraph summary beat a five-paragraph explanation of what you were about to do. If a decision has lasting consequence, record it in a `docs/` file, not in chat.
+
+<!-- END:agent-collaboration-rules -->
