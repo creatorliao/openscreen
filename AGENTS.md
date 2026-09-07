@@ -254,7 +254,7 @@ Set once per machine (user environment variable):
 LIBCLANG_PATH = <Python site-packages>\clang\native
 ```
 
-Full rationale and step-by-step setup: `docs/portable-build/WIN-BUILD-ENV-SETUP.md`.
+Full rationale and step-by-step setup: `docs/02-Areas/win-build-env-setup.md`.
 
 ### Running only the packaging step (binaries already built)
 
@@ -275,31 +275,120 @@ node scripts/build-windows-portable.mjs
 
 <!-- BEGIN:agent-collaboration-rules -->
 
-## Agent collaboration rules (derived from project history)
+## Agent collaboration rules
 
-These rules are extracted from 3 990 commits and observed working patterns. They describe how this maintainer works and what an agent must do to be useful here.
+These rules describe how this maintainer works and what an agent must do to be useful here. They are derived from project history and are aligned with the companion Recordly project's working principles.
 
-### Task execution style
+---
+
+### 一、八条核心工作原则（缺一不可）
+
+1. **功能完善**：核心路径每一步稳定可用。先保「录得稳、点得动、存得了、导出顺」。
+2. **不过度设计**：宁可少而稳，不要大而危。改动 **>500 行**进入高审慎，**>2000 行**基本拒绝，除非能拆小。
+3. **体验良好**：界面/交互正确顺滑，中文体验优先。
+4. **风险优先（低风险优先）**：先做低风险、高确定性的修复；低垂果实天然最前。
+5. **工作留痕**：每次修改必须记录四要素（见留痕规范节），可追溯、可回退。
+6. **关联与冲突前置识别**：合并前分析功能间的关联/依赖/冲突，先记录并与用户确认再动手。冲突先判断能否共存设计（如「默认 A + 可选 B」），只有真互斥才二选一。
+7. **用户视角、不破坏现有体验**：所有功能增强必须站在用户角度，不改变核心工作流程、不破坏原有体验；新增功能默认「可选」，老用户无需改变操作。
+8. **符合大多数人的工作习惯**：默认交互对齐用户已经熟悉的软件（剪映/CapCut、OBS、Camtasia、Windows 资源管理器），不要发明只有本软件才懂的迷宫。拿不准时问：OBS 或资源管理器会怎么做？按那个做。
+
+---
+
+### 二、目标锚点（G1–G4）
+
+任何改动必须先落到其中一个目标，落不进就不做。
+
+| 编号 | 目标 | 衡量 |
+|------|------|------|
+| G1 | 完整路径可用 | 录→停→编→导 无阻断 |
+| G2 | 减轻剪辑工作量 | 常用操作顺畅无摩擦 |
+| G3 | 字幕 / 配音 | 一键字幕、语音可靠 |
+| G4 | 体验良好、不过度设计 | 功能少而稳 > 大而危 |
+
+---
+
+### 三、综合决策模型
+
+```
+S = 0.40 × 风险R + 0.35 × 目标贡献C + 0.25 × 效能E   （各 1–5 分，5 分最好）
+```
+
+| 维度 | 权重 | 打分要点 |
+|------|------|---------|
+| 风险 R | 40% | 改动行数、是否动核心链路、CI 状态（分高 = 更安全） |
+| 目标贡献 C | 35% | 服务 G1–G4 的程度 |
+| 效能 E | 25% | 解决高频痛点的程度 |
+
+**每个改动合并前过七问闸门（全过才做）**：
+
+- ① 服务哪个目标(G1–G4)？② 是否不过度设计？③ 有无回归风险？
+- ④ **用户有必要吗？**（用户真的需要，还是「炫技」？）
+- ⑤ **会带来困惑吗？**（新增入口/选项/开关，会不会让老用户找不到原来操作？）
+- ⑥ **会有奇怪影响吗？**（有无意外副作用、干扰现有操作、改变默认行为？）
+- ⑦ **习惯对齐？**（默认是否符合大多数软件的使用习惯？非常规行为是否可关？）
+
+---
+
+### 四、执行顺序（不跳级）
+
+1. **低垂果实**（同时满足：风险低 + 效果好 + 修复简单）——最先做
+2. **核心路径问题**（影响录得稳/点得动/存得了/导出顺）
+3. **功能增强**（最后考量，不主动扩张，默认「可选」不改老路径）
+
+> **大而冒险的改动（>500 行、动核心链路）** 由开发者手工操控，AI 只做前面较小、低风险的改动。
+
+---
+
+### 五、工作流程（九步）
+
+```
+① 调查 → ② 分级 → ③ 决策 → ④ 换端审查 → ⑤ 等确认 → ⑥ 执行 → ⑦ 验证 → ⑧ 回退 → ⑨ 留痕
+```
+
+**执行中不中途提问。** 能自动的全自动。要人拍板的先代决写入待确认文档。过不去且能决定暂缓 → 先记暂缓原因再跳下一条。只有「开始做」和「连续金路径失败」才等人。
+
+**换端审查（禁止自审自过）**：写出方案后换另一端智能体（或新开无同一套假设的会话）审查，重点查漏诉求、自相矛盾、范围外混入、七问没过。审查完不得直接改产品代码。
+
+---
+
+### 六、留痕规范（每次修改必须记录四要素）
+
+| # | 要素 | 说明 |
+|---|------|------|
+| ① | 修改了哪些内容 | 具体文件、具体位置 |
+| ② | 是怎么修改的 | 改法（可附 diff 要点） |
+| ③ | 有什么作用 | 解决了什么、带来什么 |
+| ④ | 对原工作流程的影响 | 是否改变录制/编辑/导出行为；若改变操作方式，需同步更新相关文档并提示用户调整 |
+
+落点：`docs/01-Projects/R…-主题/09-执行留痕.md`，每个改动一条。
+
+---
+
+### 七、Task execution style
 
 **Work → trace → commit in that order.** Every non-trivial task follows the sequence:
 
-1. **Create a theme folder** under `docs/portable-build/` (or the appropriate PARA `01-Projects` slot) with `REQUIREMENT.md`, `ANALYSIS.md`, and `SOLUTION.md` before touching any code. This is the paper trail the maintainer expects to find.
+1. **Create a theme folder** in the appropriate PARA `01-Projects` slot with `REQUIREMENT.md`, `ANALYSIS.md`, and `SOLUTION.md` before touching any code. This is the paper trail the maintainer expects to find.
 2. **Execute the solution** — code changes, script additions, config edits.
 3. **Commit with a conventional commit message** that names the scope and the *why*, not just the what. Body should include the implementation summary and the rationale.
 4. **Quality review** — lint (`npm run lint`), typecheck (`npx tsc --noEmit`), unit tests for affected paths.
 
 Do **not** skip step 1 to save time. The maintainer reads these documents and uses them to evaluate whether the agent understood the problem correctly.
 
-### Environment before code
+---
+
+### 八、Environment before code
 
 When a build or native tool fails:
 
 - **Diagnose the missing prerequisite first.** Do not retry the same command hoping it succeeds.
 - **Check proxy status before any network download.** `proxy-manager status` — if not running, `proxy-manager start` before touching `fetch:ffmpeg`, `fetch:onnxruntime`, or Rust crate downloads.
 - **Use `pip install <tool>` as an unprivileged escape hatch** when a system-level install (winget, choco) requires admin elevation. `ninja` and `libclang` are both available on PyPI and land in the Python Scripts PATH.
-- Once a workaround is found, **document it in the env-setup doc** (`docs/portable-build/WIN-BUILD-ENV-SETUP.md`), not just in chat.
+- Once a workaround is found, **document it in the env-setup doc** (`docs/02-Areas/win-build-env-setup.md`), not just in chat.
 
-### Build outputs belong in `release/`
+---
+
+### 九、Build outputs belong in `release/`
 
 - **NSIS installer**: `release/<version>/Openscreen.Setup.<version>.exe` (produced by `build:win`)
 - **Portable directory**: `release/openscreen-portable-<version>/` (produced by `build:win:portable`)
@@ -317,7 +406,9 @@ The maintainer's explicit requirement: *"copy to another PC and double-click"*. 
 
 Before producing a distributable: `npm version patch --no-git-tag-version`. The version appears in the folder name, the About dialog, and the `latest.yml` — never build two different binaries with the same version number.
 
-### Chinese is the working language
+---
+
+### 十、Chinese is the working language
 
 The maintainer writes in Chinese. Respond in Chinese unless the context is a code comment, a commit message, or a PR description (those stay in English per the conventional-commit rule). Document files under `docs/` may be in Chinese.
 
